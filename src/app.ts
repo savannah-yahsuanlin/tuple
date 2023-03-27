@@ -1,3 +1,48 @@
+interface Validatable {
+	value: string | number
+	required?: boolean
+	minLength?: number
+	maxLength?: number
+	min?: number
+	max?: number
+}
+
+function validate(validatableInput: Validatable) {
+	let isValid = true
+	if(validatableInput.required) {
+		isValid = isValid && validatableInput.value.toString().trim().length !== 0
+	}
+
+	if(validatableInput.minLength && typeof validatableInput.value === 'string') {
+		isValid = isValid && validatableInput.value.length >= validatableInput.minLength
+	}
+
+	if(validatableInput.maxLength && typeof validatableInput.value === 'string') {
+		isValid = isValid && validatableInput.value.length <= validatableInput.maxLength
+	}
+
+	if(validatableInput.min && typeof validatableInput.value === 'number') {
+		isValid = isValid && validatableInput.value >= validatableInput.min
+	}
+
+	if(validatableInput.max && typeof validatableInput.value === 'number') {
+		isValid = isValid && validatableInput.value <= validatableInput.max
+	}
+	return isValid
+}
+
+function autobind( _: any, _2: String, descriptor: PropertyDescriptor) {
+	const originalMethod = descriptor.value;
+    const adjustableDescriptor: PropertyDescriptor = {
+        configurable : true,
+        get(){
+            const boundFn = originalMethod.bind(this);
+            return boundFn;
+        }
+    }
+    return adjustableDescriptor;
+}
+
 class ProjectInput {
 	templateElement: HTMLTemplateElement;
 	hostElement: HTMLDivElement;
@@ -22,12 +67,61 @@ class ProjectInput {
 		this.attach()
 	}
 
+	private gatherUserInput(): [string, string, number] | void {
+		const enteredTitle = this.titleInputElement.value
+		const enteredDescription = this.descriptionInputElement.value
+		const enteredPeople = this.peopleInputElement.value 
+
+		const titleValidatable: Validatable = {
+			value: enteredTitle,
+			required: true
+		}
+
+		const descriptionValidatable: Validatable = {
+			value: enteredDescription,
+			required: true,
+			minLength: 5
+		}
+
+		const peopleValidatable: Validatable = {
+			value: +enteredPeople,
+			required: true,
+			min: 1,
+			max: 5
+		}
+
+
+		if(
+			!validate(titleValidatable) ||
+			!validate(descriptionValidatable) ||
+			!validate(peopleValidatable)
+		) {
+			alert('invaild input')
+			return
+		} else {
+			return [enteredTitle, enteredDescription, +enteredPeople]
+		}
+	}
+	
+	private cleanInputs() {
+		this.titleInputElement.value = '' 
+		this.descriptionInputElement.value = ''
+		this.peopleInputElement.value = ''
+	}
+
+	@autobind
+
 	private handleSubmit(event: Event) {
 		event.preventDefault()
-		console.log(this.titleInputElement.value )
+		const getUserInput = this.gatherUserInput()
+		if(Array.isArray(getUserInput)){
+			const [title, desc, peo] = getUserInput
+			console.log(title, desc, peo); 
+			this.cleanInputs()
+		}
 	}
 	private configure() {
-		this.element.addEventListener('submit', this.handleSubmit.bind(this))
+		this.element.addEventListener('submit', this.handleSubmit)
 	}
 	private attach() {
 		this.hostElement.insertAdjacentElement('afterbegin', this.element)
