@@ -1,13 +1,19 @@
 class ProjectState {
+	private listeners: any[] = [];
 	private projects: any[] = []
 	private static instance: ProjectState
 
-	private constructor() {}
+	private constructor() {
+	}
 
 	static getInstance() {
-		if(this.instance) return this.instance
+		if(this.instance) {return this.instance}
 		this.instance = new ProjectState()
 		return this.instance
+	}
+
+	addListener(listenerFn: Function) {
+		this.listeners.push(listenerFn)
 	}
 
 	addProject(title: string, description: string, numOfPeople: number) {
@@ -18,10 +24,13 @@ class ProjectState {
 			people: numOfPeople
 		}
 		this.projects.push(newProject)
+		for(const listenerFn of this.listeners) {
+			listenerFn(this.projects.slice())
+		}
 	}
 }
 
-const projectState = new ProjectState()
+const projectState = ProjectState.getInstance()
 
 interface Validatable {
 	value: string | number
@@ -72,15 +81,30 @@ class ProjectList {
 	templateElement: HTMLTemplateElement;
 	hostElement: HTMLDivElement;
 	element: HTMLElement
+	assignedProjects: any[]
 	constructor(private type: 'active' | 'finished') { 
 		this.templateElement = document.getElementById("project-list")! as HTMLTemplateElement; 
 		this.hostElement = document.getElementById('app')! as HTMLDivElement; 
-
+		this.assignedProjects = []
 		const importedNode = document.importNode(this.templateElement.content, true)
 		this.element = importedNode.firstElementChild as HTMLElement;
 		this.element.id = `${this.type}-projects`
+
+			projectState.addListener((projects: any[]) => {
+				this.assignedProjects = projects
+				this.renderProjects()
+			})
 		this.attach()
 		this.renderContent()
+	}
+
+	private renderProjects() {
+		const listEl = document.getElementById(`${this.type}-projects-list`)! as HTMLUListElement
+		for(const item of this.assignedProjects) {
+			const listItem = document.createElement('li')
+			listItem.textContent = item.title
+			listEl.appendChild(listItem)
+		}
 	}
 
 	private renderContent() {
@@ -101,6 +125,7 @@ class ProjectInput {
 	titleInputElement: HTMLInputElement
 	descriptionInputElement: HTMLInputElement
 	peopleInputElement: HTMLInputElement
+
 	constructor() {
 		this.templateElement = document.getElementById("project-input")! as HTMLTemplateElement; 
 		this.hostElement = document.getElementById('app')! as HTMLDivElement; 
@@ -167,7 +192,7 @@ class ProjectInput {
 		const getUserInput = this.gatherUserInput()
 		if(Array.isArray(getUserInput)){
 			const [title, desc, peo] = getUserInput
-			console.log(title, desc, peo); 
+			projectState.addProject(title, desc, peo)
 			this.cleanInputs()
 		}
 	}
